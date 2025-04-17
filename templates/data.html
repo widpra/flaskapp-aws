@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Submitted Data</title></head>
+<body>
+  <h2>Running in: {{ az }}</h2>
+  <h1>Submissions:</h1>
+  <ul>
+    {% for row in submissions %}
+      <li>{{ row.name }} - {{ row.email }}</li>
+    {% endfor %}
+  </ul>
+  <br>
+  <a href="/">Back</a>
+</body>
+</html>
