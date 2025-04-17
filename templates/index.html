@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Form Submission</title></head>
+<body>
+  <h2>Running in: {{ az }}</h2>
+  <h1>Submit Info</h1>
+  <form method="POST" action="/submit">
+    Name: <input name="name" required><br><br>
+    Email: <input name="email" required><br><br>
+    <input type="submit" value="Submit">
+  </form>
+  <br>
+  <a href="/data">View Submissions</a>
+</body>
+</html>
