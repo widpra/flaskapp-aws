@@ -1,0 +1,119 @@
+#!/bin/bash
+yum update -y
+yum install -y python3 git
+pip3 install --upgrade pip
+pip3 install flask pymysql requests
+
+cd /home/ec2-user
+git clone https://github.com/widpra/flaskapp-aws flaskapp
+cd flaskapp
+
+# app.py
+cat > app.py << 'EOF'
+from flask import Flask, render_template, request, redirect, url_for
+import pymysql
+import requests
+from db_config import get_db_connection
+
+app = Flask(__name__)
+
+def get_az():
+    try:
+        return requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=1).text
+    except:
+        return "Unavailable"
+
+@app.route('/')
+def index():
+    az = get_az()
+    return render_template('index.html', az=az)
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    name = request.form['name']
+    email = request.form['email']
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("INSERT INTO submissions (name, email) VALUES (%s, %s)", (name, email))
+        conn.commit()
+    conn.close()
+    return redirect(url_for('data'))
+
+@app.route('/data')
+def data():
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM submissions")
+        data = cursor.fetchall()
+    conn.close()
+    az = get_az()
+    return render_template('data.html', submissions=data, az=az)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80)
+EOF
+
+# db_config.py
+cat > db_config.py << 'EOF'
+import pymysql
+
+def get_db_connection():
+    return pymysql.connect(
+        host='formdb.abcdefghijkl.us-east-1.rds.amazonaws.com',
+        user='admin',
+        password='mypassword123',
+        database='formdb',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+EOF
+
+# requirements.txt
+cat > requirements.txt << 'EOF'
+Flask
+pymysql
+requests
+EOF
+
+# HTML templates
+mkdir -p templates
+
+# index.html
+cat > templates/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Form Submission</title></head>
+<body>
+  <h2>Running in: {{ az }}</h2>
+  <h1>Submit Info</h1>
+  <form method="POST" action="/submit">
+    Name: <input name="name" required><br><br>
+    Email: <input name="email" required><br><br>
+    <input type="submit" value="Submit">
+  </form>
+  <br>
+  <a href="/data">View Submissions</a>
+</body>
+</html>
+EOF
+
+# data.html
+cat > templates/data.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Submitted Data</title></head>
+<body>
+  <h2>Running in: {{ az }}</h2>
+  <h1>Submissions:</h1>
+  <ul>
+    {% for row in submissions %}
+      <li>{{ row.name }} - {{ row.email }}</li>
+    {% endfor %}
+  </ul>
+  <br>
+  <a href="/">Back</a>
+</body>
+</html>
+EOF
+
+# Run the app
+nohup python3 app.py > app.log 2>&1 &
